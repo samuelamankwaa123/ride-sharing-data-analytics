@@ -1,0 +1,157 @@
+-- Rename columns in the trips_data table
+
+ALTER TABLE c_trips_data RENAME COLUMN c1 TO TripID;
+ALTER TABLE c_trips_data RENAME COLUMN c2 TO TripDate;
+ALTER TABLE c_trips_data RENAME COLUMN c3 TO CustomerID;
+ALTER TABLE c_trips_data RENAME COLUMN c4 TO DriverID;
+ALTER TABLE c_trips_data RENAME COLUMN c5 TO City;
+ALTER TABLE c_trips_data RENAME COLUMN c6 TO StartLocation;
+ALTER TABLE c_trips_data RENAME COLUMN c7 TO EndLocation;
+ALTER TABLE c_trips_data RENAME COLUMN c8 TO Distance;
+ALTER TABLE c_trips_data RENAME COLUMN c9 TO Duration;
+ALTER TABLE c_trips_data RENAME COLUMN c10 TO Fare;
+ALTER TABLE c_trips_data RENAME COLUMN c11 TO Status;
+ALTER TABLE c_trips_data RENAME COLUMN c12 TO Rating;
+SELECT * FROM c_trips_data;
+
+-- Query to calculate total trips, total revenue, and average revenue per trip by city
+SELECT 
+    City, 
+    COUNT(*) AS TotalTrips, 
+    SUM(Fare) AS TotalRevenue, 
+    AVG(Fare) AS AverageRevenuePerTrip 
+FROM c_trips_data 
+WHERE City IS NOT NULL AND City != 'City'
+GROUP BY City;
+
+----Retention rate
+WITH FirstTrip AS (
+    SELECT CustomerID, MIN(TripDate) AS FirstTripDate
+    FROM c_trips_data
+    GROUP BY CustomerID
+),
+SecondTrip AS (
+    SELECT t.CustomerID
+    FROM c_trips_data t
+    JOIN FirstTrip f ON t.CustomerID = f.CustomerID
+    WHERE t.TripDate > f.FirstTripDate AND JULIANDAY(t.TripDate) - JULIANDAY(f.FirstTripDate) <= 30
+)
+SELECT 
+    (COUNT(DISTINCT SecondTrip.CustomerID) * 100.0 / COUNT(DISTINCT FirstTrip.CustomerID)) AS RetentionRate
+FROM FirstTrip
+LEFT JOIN SecondTrip ON FirstTrip.CustomerID = SecondTrip.CustomerID;
+
+---Driver performance
+SELECT DriverID, 
+       AVG(Rating) AS AverageRating, 
+       COUNT(*) AS TotalTrips
+FROM c_trips_data
+WHERE Rating IS NOT NULL AND DriverID!= 'DriverID'
+GROUP BY DriverID
+--HAVING TotalTrips >= 10
+ORDER BY AverageRating DESC
+LIMIT 5;
+
+SELECT DISTINCT TripDate
+FROM c_trips_data
+ORDER BY TripDate
+--LIMIT 10;
+
+--Busiest hour across all dates
+SELECT STRFTIME('%H', TripDate) AS TripHour, COUNT(*) AS TripsPerHour
+FROM c_trips_data
+GROUP BY TripHour
+ORDER BY TripsPerHour DESC;
+
+---Total Trips, Total Revenue, and Average Revenue per Trip by City in the Last Month
+SELECT City, 
+       COUNT(*) AS TotalTrips, 
+       SUM(Fare) AS TotalRevenue, 
+       AVG(Fare) AS AverageRevenuePerTrip
+FROM c_trips_data
+WHERE TripDate >= DATE('now', '-2 month') AND City != 'City'
+GROUP BY City;
+
+--- Alternatively aggregated by month
+SELECT City, STRFTIME('%Y-%m', TripDate) AS Month, 
+       COUNT(*) AS TotalTrips, 
+       SUM(Fare) AS TotalRevenue, 
+       AVG(Fare) AS AverageRevenuePerTrip
+FROM c_trips_data
+WHERE City != 'City'
+GROUP BY City, Month
+ORDER BY Month, City;
+
+--Driver pefomance: Top 5 Drivers by Average Rating (Minimum 1 Trip)
+SELECT DriverID, 
+       AVG(Rating) AS AverageRating, 
+       COUNT(*) AS TotalTrips
+FROM c_trips_data
+WHERE Rating IS NOT NULL AND DriverID != 'DriverID'
+GROUP BY DriverID
+HAVING TotalTrips >= 1
+ORDER BY AverageRating DESC
+LIMIT 5;
+
+---Peak hour analysis. Hour with the Highest Average Number of Trips in the Past 2 months
+--The hour of the day with the highest average number of trips over the past 2 months.
+SELECT TripHour, AVG(TripsPerHour) AS AvgTripsPerHour
+FROM (
+    SELECT STRFTIME('%H', TripDate) AS TripHour, COUNT(*) AS TripsPerHour
+    FROM c_trips_data
+    WHERE TripDate >= DATE('now', '-2 months')
+    GROUP BY DATE(TripDate), STRFTIME('%H', TripDate)
+) AS DailyTrips
+GROUP BY TripHour
+ORDER BY AvgTripsPerHour DESC
+LIMIT 1;
+
+---customer segementation by trip count
+SELECT CustomerID,
+       CASE 
+           WHEN COUNT(*) >= 50 THEN 'High'
+           WHEN COUNT(*) BETWEEN 10 AND 49 THEN 'Medium'
+           ELSE 'Low'
+       END AS CustomerSegment
+FROM c_trips_data
+WHERE CustomerID !='CustomerID'
+GROUP BY CustomerID;
+
+--- customers who haven't taken a trip in the last 30 days, identifying them as potential churn risks.
+SELECT CustomerID
+FROM c_trips_data
+GROUP BY CustomerID
+HAVING MAX(TripDate) < DATE('now', '-30 days');
+
+--Average Revenue Per Kilometer by City
+SELECT City, 
+       SUM(Fare) / SUM(Distance) AS RevenuePerKm
+FROM c_trips_data
+GROUP BY City;
+
+--6 most popular routes and average duration for each
+SELECT StartLocation, 
+       EndLocation, 
+       COUNT(*) AS TripCount, 
+       AVG(Duration) AS AverageDuration
+FROM c_trips_data
+WHERE StartLocation != 'StartLocation' 
+AND EndLocation != 'EndLocation'
+GROUP BY StartLocation, EndLocation
+ORDER BY TripCount DESC
+LIMIT 6;
+
+--Driver income analysis for the past 2 months
+SELECT DriverID, 
+       SUM(Fare) AS TotalIncome
+FROM c_trips_data
+WHERE TripDate >= DATE('now', '-60 days') AND DriverID != 'DriverID'
+GROUP BY DriverID
+ORDER BY TotalIncome DESC;
+
+---Trip Cancellation rate by city
+SELECT City, 
+       SUM(CASE WHEN Status = 'Canceled' THEN 1 ELSE 0 END) * 100.0 / COUNT(*) AS CancellationRate
+FROM c_trips_data
+GROUP BY City;
+
