@@ -55,6 +55,5 @@ Calculates total income for each driver over the past two months.
 12. Trip Cancellation Rate by City
 Calculates the trip cancellation rate as a percentage for each city.
 
-How to Use
-Run the SQL Script: Copy the SQL commands into an SQL-compatible environment (e.g., SQLite, MySQL) and execute them.
-Data Insights: Analyze the output of each query to understand various aspects of the ride-sharing data, including customer behavior, driver performance, and operational metrics.
+Run the SQL Script in an SQL-compatible environment (e.g., SQLite, MySQL etc) and execute them.
+Analyze the output of each query to understand ride-sharing data, including customer behavior, driver performance, and operational metrics.
