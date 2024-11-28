@@ -1,4 +1,4 @@
-# ride-sharing-data-analytics
+# SQl Ride-sharing-data-analytics
 
 Project Overview
 This SQL script performs data analysis on a fictional ride-sharing platform dataset (c_trips_data). The analysis includes metrics on customer retention, driver performance, trip statistics, revenue per trip, and peak hours, among others. These metrics are designed to provide insights similar to those that might be valuable for ride-sharing platforms.
